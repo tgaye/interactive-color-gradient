@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Color Gradient</title>
+    <script src="https://cdn.jsdelivr.net/npm/p5@1.8.0/lib/p5.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+        }
+        #controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            max-width: 250px;
+            z-index: 100;
+        }
+        #controls h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .control-group {
+            margin-bottom: 10px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 12px;
+            color: #555;
+        }
+        #toggle-controls {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.8);
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            z-index: 100;
+            font-size: 12px;
+        }
+    </style>
+
+<base target="_self">
+
+
+    <div id="controls">
+        <h3>Gradient Controls</h3>
+        <div class="control-group">
+            <label for="color1">Color 1</label>
+            <input type="color" id="color1" value="#FF0055">
+        </div>
+        <div class="control-group">
+            <label for="color2">Color 2</label>
+            <input type="color" id="color2" value="#00AAFF">
+        </div>
+        <div class="control-group">
+            <label for="color3">Color 3</label>
+            <input type="color" id="color3" value="#7700FF">
+        </div>
+        <div class="control-group">
+            <label for="wave-speed">Wave Speed</label>
+            <input type="range" id="wave-speed" min="0" max="0.1" step="0.001" value="0.02">
+        </div>
+        <div class="control-group">
+            <label for="wave-size">Wave Size</label>
+            <input type="range" id="wave-size" min="0" max="200" step="1" value="50">
+        </div>
+        <div class="control-group">
+            <label for="interaction-strength">Interaction Strength</label>
+            <input type="range" id="interaction-strength" min="0" max="100" step="1" value="30">
+        </div>
+    </div>
+    <button id="toggle-controls">Hide Controls</button>
+
+    <script>
+        const sketch = (p) => {
+            let color1, color2, color3;
+            let waveSpeed, waveSize, interactionStrength;
+            let time = 0;
+            let cols, rows;
+            let resolution = 30;
+            let particles = [];
+            const maxParticles = 1000;
+            
+            p.setup = () => {
+                p.createCanvas(p.windowWidth, p.windowHeight);
+                p.colorMode(p.HSB, 360, 100, 100, 1);
+                
+                // Initialize with default values
+                color1 = p.color(255, 0, 85);
+                color2 = p.color(0, 170, 255);
+                color3 = p.color(119, 0, 255);
+                waveSpeed = 0.02;
+                waveSize = 50;
+                interactionStrength = 30;
+                
+                // Create control event listeners
+                p.select('#color1').input(() => {
+                    color1 = p.color(p.select('#color1').value());
+                });
+                p.select('#color2').input(() => {
+                    color2 = p.color(p.select('#color2').value());
+                });
+                p.select('#color3').input(() => {
+                    color3 = p.color(p.select('#color3').value());
+                });
+                p.select('#wave-speed').input(() => {
+                    waveSpeed = parseFloat(p.select('#wave-speed').value());
+                });
+                p.select('#wave-size').input(() => {
+                    waveSize = parseFloat(p.select('#wave-size').value());
+                });
+                p.select('#interaction-strength').input(() => {
+                    interactionStrength = parseFloat(p.select('#interaction-strength').value());
+                });
+                
+                // Toggle controls button
+                p.select('#toggle-controls').mousePressed(() => {
+                    const controls = p.select('#controls');
+                    const button = p.select('#toggle-controls');
+                    if (controls.style('display') === 'none') {
+                        controls.style('display', 'block');
+                        button.html('Hide Controls');
+                        localStorage.setItem('controlsVisible', 'true');
+                    } else {
+                        controls.style('display', 'none');
+                        button.html('Show Controls');
+                        localStorage.setItem('controlsVisible', 'false');
+                    }
+                });
+                
+                // Check localStorage for controls visibility
+                if (localStorage.getItem('controlsVisible') === 'false') {
+                    p.select('#controls').style('display', 'none');
+                    p.select('#toggle-controls').html('Show Controls');
+                }
+                
+                // Initialize particles
+                cols = Math.ceil(p.width / resolution);
+                rows = Math.ceil(p.height / resolution);
+                
+                for (let i = 0; i < maxParticles; i++) {
+                    particles.push({
+                        x: p.random(p.width),
+                        y: p.random(p.height),
+                        size: p.random(2, 5),
+                        speed: p.random(0.5, 2)
+                    });
+                }
+            };
+            
+            p.draw = () => {
+                time += waveSpeed;
+                
+                // Background gradient with wave distortion
+                p.noStroke();
+                for (let y = 0; y < p.height; y += resolution) {
+                    for (let x = 0; x < p.width; x += resolution) {
+                        // Calculate noise-based distortion
+                        let distortion = p.noise(x * 0.01, y * 0.01, time) * waveSize;
+                        
+                        // Mouse interaction effect
+                        let mouseDist = p.dist(x, y, p.mouseX, p.mouseY);
+                        let mouseEffect = p.map(mouseDist, 0, 300, interactionStrength, 0, true);
+                        distortion += mouseEffect;
+                        
+                        // Calculate color based on position and distortion
+                        let xNorm = p.map(x + distortion, 0, p.width, 0, 1);
+                        let yNorm = p.map(y + distortion, 0, p.height, 0, 1);
+                        
+                        // Blend colors based on position
+                        let c1 = p.lerpColor(color1, color2, xNorm);
+                        let c2 = p.lerpColor(color2, color3, yNorm);
+                        let finalColor = p.lerpColor(c1, c2, 0.5 + 0.3 * p.sin(time));
+                        
+                        p.fill(finalColor);
+                        p.rect(x, y, resolution, resolution);
+                    }
+                }
+                
+                // Add subtle particles for depth
+                p.blendMode(p.OVERLAY);
+                for (let i = 0; i < maxParticles; i++) {
+                    let particle = particles[i];
+                    particle.y -= particle.speed;
+                    if (particle.y < 0) {
+                        particle.y = p.height;
+                        particle.x = p.random(p.width);
+                    }
+                    
+                    let alpha = p.map(particle.y, 0, p.height, 50, 10);
+                    p.fill(255, alpha);
+                    p.circle(particle.x, particle.y, particle.size);
+                }
+                p.blendMode(p.BLEND);
+            };
+            
+            p.windowResized = () => {
+                p.resizeCanvas(p.windowWidth, p.windowHeight);
+                cols = Math.ceil(p.width / resolution);
+                rows = Math.ceil(p.height / resolution);
+            };
+        };
+        
+        new p5(sketch);
+    </script>
+
+              
+          
+                
+          
+              
